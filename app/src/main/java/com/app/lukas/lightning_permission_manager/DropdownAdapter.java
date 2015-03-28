@@ -10,12 +10,13 @@ import java.util.List;
 
 /**
  * Created by Lukas on 27.03.2015.
+ * Manages items in a dropdown menu
  */
-public class DropdownAdapter extends ArrayAdapter<String> implements Filterable{
+class DropdownAdapter extends ArrayAdapter<String> implements Filterable{
 
     private ArrayList<String> fullList;
     private ArrayList<String> originalValues;
-    private List<String> hide;
+    private final List<String> hide;
     private ArrayFilter filter;
 
     public DropdownAdapter(Context context, List<String> objects, List<String> hide) {
@@ -81,6 +82,7 @@ public class DropdownAdapter extends ArrayAdapter<String> implements Filterable{
         protected void publishResults(CharSequence constraint, FilterResults results) {
 
             if(results.values!=null){
+                //noinspection unchecked
                 fullList = (ArrayList<String>) results.values;
             }else{
                 fullList = new ArrayList<>();

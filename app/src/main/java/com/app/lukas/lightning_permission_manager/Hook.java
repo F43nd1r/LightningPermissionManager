@@ -26,12 +26,14 @@ import static de.robv.android.xposed.XposedHelpers.getObjectField;
 
 /**
  * Created by Lukas on 25.03.2015.
+ * Xposed Hook
  */
-public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
+@SuppressWarnings("unchecked")
+class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
 
-    XSharedPreferences pref;
-    String installed;
+    private XSharedPreferences pref;
+    private String installed;
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {

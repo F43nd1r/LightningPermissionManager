@@ -3,7 +3,7 @@
       xmlns:tools="http://schemas.android.com/tools"
       tools:context="com.app.lukas.lightning_permission_manager.MainActivity">
     <item android:id="@+id/action_save"
-          android:title="Save"
+          android:title="@string/action_save"
           android:orderInCategory="100"
           app:showAsAction="ifRoom"/>
 </menu>

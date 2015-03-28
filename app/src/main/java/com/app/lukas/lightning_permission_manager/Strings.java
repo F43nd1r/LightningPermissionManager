@@ -9,14 +9,15 @@ import java.util.ArrayList;
 
 /**
  * Created by Lukas on 25.03.2015.
+ * Coomon Strings and static Methods
  */
-public class Strings {
+class Strings {
 
     static final String PKG = Strings.class.getPackage().getName();
     static final String LLX = "net.pierrox.lightning_launcher_extreme";
     static final String LL = "net.pierrox.lightning_launcher";
     static final String PREF_NAME = "Settings";
-    static final String KEY = "Permissions";
+    private static final String KEY = "Permissions";
     static final String ACTION_PERMISSIONS = "update";
 
 

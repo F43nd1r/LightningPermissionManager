@@ -1,5 +1,6 @@
 package com.app.lukas.lightning_permission_manager;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -30,9 +31,11 @@ public class MainActivity extends ActionBarActivity {
     private AutoCompleteTextView textView;
     private SharedPreferences preferences;
 
+    @SuppressLint("WorldReadableFiles")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //noinspection deprecation
         preferences = getSharedPreferences(Strings.PREF_NAME,MODE_WORLD_READABLE);
         setContentView(R.layout.activity_main);
         textView = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView);
@@ -43,15 +46,15 @@ public class MainActivity extends ActionBarActivity {
 
         List<PermissionGroupInfo> lstGroups = pm.getAllPermissionGroups(0);
         for (PermissionGroupInfo pgi : lstGroups) {
-            List<PermissionInfo> lstPermissions = null;
+            List<PermissionInfo> lstPermissions;
             try {
                 lstPermissions = pm.queryPermissionsByGroup(pgi.name, 0);
+                for (PermissionInfo pi : lstPermissions) {
+                    permissions.add(pi.name);
+                }
             } catch (PackageManager.NameNotFoundException e) {
                 e.printStackTrace();
             }
-            for (PermissionInfo pi : lstPermissions) {
-                    permissions.add(pi.name);
-                }
         }
         list = Strings.read(preferences);
         DropdownAdapter permAdapter = new DropdownAdapter(this, permissions,list);
@@ -71,7 +74,6 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
@@ -86,7 +88,7 @@ public class MainActivity extends ActionBarActivity {
             applyIntent.putExtra("action", Strings.ACTION_PERMISSIONS);
             applyIntent.putExtra("Kill", true);
             sendBroadcast(applyIntent, null);
-            Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.toast_saved, Toast.LENGTH_SHORT).show();
             return true;
         }
 
@@ -95,20 +97,21 @@ public class MainActivity extends ActionBarActivity {
 
     private void delete(final String item){
         new AlertDialog.Builder(this)
-                .setTitle("Remove \""+item+"\" ?")
-                .setNegativeButton("No",null)
-                .setPositiveButton("Yes",new DialogInterface.OnClickListener() {
+                .setTitle(getString(R.string.text_remove)+" \""+item+"\" ?")
+                .setNegativeButton(R.string.text_no,null)
+                .setPositiveButton(R.string.text_yes,new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         list.remove(item);
                         updateAdapter();
                         save();
-                        Toast.makeText(MainActivity.this, "Permissions are removed upon reboot", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, R.string.toast_remove, Toast.LENGTH_SHORT).show();
                     }
                 })
                 .show();
     }
 
+    @SuppressLint("unused")
     public void onAdd(View v){
         if(list == null) return;
         list.add(textView.getText().toString());
@@ -117,8 +120,8 @@ public class MainActivity extends ActionBarActivity {
         textView.setText("");
     }
 
-    public void save(){
-        Strings.write(list,preferences);
+    void save(){
+        Strings.write(list, preferences);
 
     }
 
