@@ -1,4 +1,4 @@
-package com.app.lukas.lightning_permission_manager;
+package com.faendir.lightning_launcher.permission_manager;
 
 import android.content.Context;
 import android.widget.ArrayAdapter;
@@ -14,14 +14,14 @@ import java.util.List;
  */
 class DropdownAdapter extends ArrayAdapter<String> implements Filterable{
 
-    private ArrayList<String> fullList;
-    private ArrayList<String> originalValues;
+    private List<String> fullList;
+    private List<String> originalValues;
     private final List<String> hide;
     private ArrayFilter filter;
 
     public DropdownAdapter(Context context, List<String> objects, List<String> hide) {
-        super(context, android.R.layout.simple_list_item_1, objects);
-        fullList = (ArrayList<String>) objects;
+        super(context, R.layout.list_item, android.R.id.text1, objects);
+        fullList = objects;
         originalValues = new ArrayList<>(fullList);
         this.hide = hide;
     }
@@ -35,6 +35,7 @@ class DropdownAdapter extends ArrayAdapter<String> implements Filterable{
     public String getItem(int position) {
         return fullList.get(position);
     }
+
 
     @Override
     public Filter getFilter() {

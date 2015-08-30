@@ -1,4 +1,4 @@
-package com.app.lukas.lightning_permission_manager;
+package com.faendir.lightning_launcher.permission_manager;
 
 import android.content.SharedPreferences;
 
@@ -6,12 +6,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Lukas on 25.03.2015.
- * Coomon Strings and static Methods
+ * Common Strings and static Methods
  */
 class Strings {
+    private Strings(){}
 
     static final String PKG = Strings.class.getPackage().getName();
     static final String LLX = "net.pierrox.lightning_launcher_extreme";
@@ -21,11 +23,11 @@ class Strings {
     static final String ACTION_PERMISSIONS = "update";
 
 
-    static public void write(ArrayList<String> list,SharedPreferences preferences) {
+    public static void write(List<String> list,SharedPreferences preferences) {
         preferences.edit().putString(KEY,new JSONArray(list).toString()).apply();
     }
 
-    static public ArrayList<String> read(SharedPreferences preferences){
+    public static List<String> read(SharedPreferences preferences){
         ArrayList<String> list = new ArrayList<>();
         String s = preferences.getString(KEY,"");
         if (s.equals("") || s.equals("[]")) return list;

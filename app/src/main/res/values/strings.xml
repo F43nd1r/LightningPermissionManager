@@ -8,4 +8,16 @@
     <string name="text_remove">Remove</string>
     <string name="text_no">No</string>
     <string name="text_yes">Yes</string>
+    <string name="xposed">de.robv.android.xposed.installer</string>
+    <string name="title_error">Error</string>
+    <string name="msg_notActive">The module is not active. Please activate it in Xposed and
+        reboot.
+    </string>
+    <string name="msg_notInstalled">Xposed is missing on the device. Please install Xposed first.
+    </string>
+    <string name="btn_close">Close</string>
+    <string name="btn_xposed">Go to Xposed</string>
+    <string name="btn_downloadXposed">Download Xposed</string>
+    <string name="link_xposed">http://repo.xposed.info/module/de.robv.android.xposed.installer
+    </string>
 </resources>
