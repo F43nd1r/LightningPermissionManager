@@ -4,6 +4,8 @@
       tools:context="com.faendir.lightning_launcher.permission_manager.MainActivity">
     <item android:id="@+id/action_save"
           android:title="@string/action_save"
-          android:orderInCategory="100"
           app:showAsAction="ifRoom"/>
+    <item android:id="@+id/action_settings"
+          android:title="@string/action_settings"
+          app:showAsAction="never"/>
 </menu>

@@ -19,17 +19,21 @@ class Strings {
     static final String LLX = "net.pierrox.lightning_launcher_extreme";
     static final String LL = "net.pierrox.lightning_launcher";
     static final String PREF_NAME = "Settings";
-    private static final String KEY = "Permissions";
+    private static final String KEY_PERMISSIONS = "Permissions";
+    static final String KEY_LOG = "Log";
     static final String ACTION_PERMISSIONS = "update";
+    static final String KEY_ACTION = "action";
+    static final String INTENT_UPDATE = PKG + ".UPDATE_PERMISSIONS";
+    static final String KEY_KILL = "Kill";
 
 
     public static void write(List<String> list,SharedPreferences preferences) {
-        preferences.edit().putString(KEY,new JSONArray(list).toString()).apply();
+        preferences.edit().putString(KEY_PERMISSIONS,new JSONArray(list).toString()).apply();
     }
 
     public static List<String> read(SharedPreferences preferences){
         ArrayList<String> list = new ArrayList<>();
-        String s = preferences.getString(KEY,"");
+        String s = preferences.getString(KEY_PERMISSIONS,"");
         if (s.equals("") || s.equals("[]")) return list;
         try {
             JSONArray array = new JSONArray(s);

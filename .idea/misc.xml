@@ -23,6 +23,7 @@
     <entry_points version="2.0">
       <entry_point TYPE="method" FQNAME="com.app.lukas.lightning_permission_manager.MainActivity void onAdd(android.view.View v)" />
       <entry_point TYPE="method" FQNAME="com.faendir.lightning_launcher.permission_manager.MainActivity void onAdd(android.view.View v)" />
+      <entry_point TYPE="method" FQNAME="com.faendir.lightning_launcher.permission_manager.AppCompatPreferenceActivity void setSupportActionBar(android.support.v7.widget.Toolbar toolbar)" />
     </entry_points>
   </component>
   <component name="FindBugsConfigurable">

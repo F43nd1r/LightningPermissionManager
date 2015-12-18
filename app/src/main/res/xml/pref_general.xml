@@ -1,0 +1,12 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreference
+        android:key="Log"
+        android:title="Enable Logs"/>
+    <SwitchPreference
+        android:key="Kill"
+        android:summary="@string/summary_kill"
+        android:title="@string/title_kill"
+        android:defaultValue="true"/>
+
+</PreferenceScreen>
