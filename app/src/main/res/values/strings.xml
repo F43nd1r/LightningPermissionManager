@@ -2,7 +2,7 @@
     <string name="app_name">Lightning Permission Manager</string>
 
     <string name="text_add">Add</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Apply</string>
     <string name="toast_saved">Saved!</string>
     <string name="toast_remove">Permissions are removed upon reboot</string>
     <string name="text_remove">Remove</string>
@@ -24,4 +24,5 @@
     <string name="action_settings">Settings</string>
     <string name="summary_kill">This helps to apply new Permissions</string>
     <string name="title_kill">Kill LL when applying</string>
+    <string name="activity_name">LL Permission Manager</string>
 </resources>

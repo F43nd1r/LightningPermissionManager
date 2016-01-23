@@ -21,7 +21,8 @@
             android:editable="true"
             android:enabled="true"
             android:maxLines="3"
-            android:layout_weight="1"/>
+            android:layout_weight="1"
+            android:inputType="textNoSuggestions|textMultiLine"/>
 
         <Button
             android:layout_width="wrap_content"

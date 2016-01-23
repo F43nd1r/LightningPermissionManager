@@ -5,7 +5,9 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.PermissionInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -57,12 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         switch (id) {
             case R.id.action_save:
-                save();
-                Intent applyIntent = new Intent(Strings.INTENT_UPDATE);
-                applyIntent.putExtra(Strings.KEY_ACTION, Strings.ACTION_PERMISSIONS);
-                applyIntent.putExtra(Strings.KEY_KILL, preferences.getBoolean(Strings.KEY_KILL, true));
-                sendBroadcast(applyIntent, null);
-                Toast.makeText(this, R.string.toast_saved, Toast.LENGTH_SHORT).show();
+                saveAndApply();
                 return true;
             case R.id.action_settings:
                 startActivity(new Intent(this, SettingsActivity.class));
@@ -82,7 +79,6 @@ public class MainActivity extends AppCompatActivity {
                         list.remove(item);
                         updateAdapter();
                         save();
-                        Toast.makeText(MainActivity.this, R.string.toast_remove, Toast.LENGTH_SHORT).show();
                     }
                 })
                 .show();
@@ -98,7 +94,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void save() {
         Strings.write(list, preferences);
+    }
 
+    private void saveAndApply() {
+        save();
+        Intent applyIntent = new Intent(Strings.INTENT_UPDATE);
+        applyIntent.putExtra(Strings.KEY_ACTION, Strings.ACTION_PERMISSIONS);
+        applyIntent.putExtra(Strings.KEY_KILL, preferences.getBoolean(Strings.KEY_KILL, true));
+        sendBroadcast(applyIntent, null);
+        updateAdapter();
+        Toast.makeText(this, R.string.toast_saved, Toast.LENGTH_SHORT).show();
     }
 
     private void updateAdapter() {
@@ -165,10 +170,20 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+        PackageManager packageManager = getPackageManager();
+        for (PackageInfo info : packageManager.getInstalledPackages(PackageManager.GET_PERMISSIONS)) {
+            if (info.permissions != null) {
+                for (PermissionInfo permissionInfo : info.permissions) {
+                    if (!permissions.contains(permissionInfo.name)) {
+                        permissions.add(permissionInfo.name);
+                    }
+                }
+            }
+        }
         list = Strings.read(preferences);
         DropdownAdapter permAdapter = new DropdownAdapter(this, permissions, list);
         textView.setAdapter(permAdapter);
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, list);
+        adapter = new ListAdapter(this, list);
         updateAdapter();
         ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(adapter);

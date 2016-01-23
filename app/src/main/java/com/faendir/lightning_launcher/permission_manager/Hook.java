@@ -5,13 +5,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
 import android.os.Build;
+import android.text.TextUtils;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -39,6 +42,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private XSharedPreferences pref;
     private String installed;
     private final Log log;
+    private String preventExceptionFor = null;
 
     @SuppressWarnings("WeakerAccess")
     public Hook() {
@@ -47,12 +51,13 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
-        log.append("initZygote");
         pref = new XSharedPreferences(this.getClass().getPackage().getName(), Strings.PREF_NAME);
         pref.makeWorldReadable();
-        log.append("prefs now WorldReadable");
+        log.append("Prefs now WorldReadable");
         if (pref.contains(Strings.KEY_LOG)) {
-            log.setDoOutput(pref.getBoolean(Strings.KEY_LOG, log.doesOutput()));
+            boolean doLog = pref.getBoolean(Strings.KEY_LOG, log.doesOutput());
+            log.append("Prefs request to disable logs: " + !doLog);
+            log.setDoOutput(doLog);
         }
     }
 
@@ -66,7 +71,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
             setupGranter(packageManagerService, userManagerService);
             setupExceptionPreventive(packageManagerService);
         } else if (loadPackageParam.packageName.equals(Strings.PKG)) {
-            setupSelfHook(findClass(MainActivity.class.getName(),loadPackageParam.classLoader));
+            setupSelfHook(findClass(MainActivity.class.getName(), loadPackageParam.classLoader));
         }
     }
 
@@ -84,7 +89,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         log.append("Hooked systemReady");
     }
 
-    private void setupGranter(Class packageManagerService, final Class userManagerService) {
+    private void setupGranter(final Class packageManagerService, final Class userManagerService) {
         XC_MethodHook hookGrantPermissions = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -95,52 +100,95 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 Object extras = getObjectField(param.args[0], "mExtras");
                 Object settings = getObjectField(param.thisObject, "mSettings");
                 Object permissions = getObjectField(settings, "mPermissions");
+                Collection<String> requestedPerms = (Collection<String>) getObjectField(param.args[0], "requestedPermissions");
                 List<String> newPerms = Strings.read(pref);
                 log.append("Adding permissions: " + Arrays.toString(newPerms.toArray()));
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.LOLLIPOP) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                     Object sharedUser = getObjectField(extras, "sharedUser");
                     log.append("Shared User exists: " + (sharedUser != null));
-                    Set<String> grantedPerms;
+                    Collection<String> grantedPerms;
                     if (sharedUser == null)
-                        grantedPerms = (Set<String>) getObjectField(extras, "grantedPermissions");
+                        grantedPerms = (Collection<String>) getObjectField(extras, "grantedPermissions");
                     else
-                        grantedPerms = (Set<String>) getObjectField(sharedUser, "grantedPermissions");
+                        grantedPerms = (Collection<String>) getObjectField(sharedUser, "grantedPermissions");
 
                     for (String perm : newPerms) {
                         Object permission = callMethod(permissions, "get", perm);
                         log.append("Permission " + perm + ": " + permission);
                         if (permission == null) continue;
+                        if (callMethod(param.thisObject, "checkPermission", perm, pkgName) == PackageManager.PERMISSION_GRANTED) {
+                            log.append("Permission already present");
+                            continue;
+                        }
                         grantedPerms.add(perm);
                         int[] gpGids = (int[]) getObjectField(sharedUser != null ? sharedUser : extras, "gids");
                         int[] bpGids = (int[]) getObjectField(permission, "gids");
                         callStaticMethod(param.thisObject.getClass(),
                                 "appendInts", gpGids, bpGids);
-                        log.append("Permission added: " + permission);
+                        log.append("Permission added");
+                    }
+                    for (Iterator<String> it = grantedPerms.iterator(); it.hasNext(); ) {
+                        String granted = it.next();
+                        if (!requestedPerms.contains(granted) && !newPerms.contains(granted)) {
+                            it.remove();
+                            Object permission = callMethod(permissions, "get", granted);
+                            int[] gpGids = (int[]) getObjectField(sharedUser != null ? sharedUser : extras, "gids");
+                            int[] bpGids = (int[]) getObjectField(permission, "gids");
+                            callStaticMethod(param.thisObject.getClass(),
+                                    "removeInts", gpGids, bpGids);
+                            log.append("Permission removed");
+                        }
                     }
                 } else {
                     final Object permissionState = callMethod(extras, "getPermissionsState");
-                    for (String perm : newPerms) {
-                        Object permission = callMethod(permissions, "get", perm);
-                        log.append("Permission " + perm + ": " + permission);
-                        if (permission == null) continue;
-                        int protectionLevel = getIntField(permission, "protectionLevel");
-                        if (protectionLevel == PermissionInfo.PROTECTION_DANGEROUS) {
-                            log.append("Dangerous permission");
-                            Object userService = callStaticMethod(userManagerService, "getInstance");
-                            int[] userIds = (int[]) callMethod(userService, "getUserIds");
-                            for (int id : userIds) {
-                                log.append("Granting for user " + id);
+                    Object userService = callStaticMethod(userManagerService, "getInstance");
+                    int[] userIds = (int[]) callMethod(userService, "getUserIds");
+                    for (int id : userIds) {
+                        log.append("user: " + id);
+                        for (String perm : newPerms) {
+                            Object permission = callMethod(permissions, "get", perm);
+                            log.append("Permission " + perm + ": " + permission);
+                            if (permission == null) continue;
+                            if (callMethod(param.thisObject, "checkPermission", perm, pkgName, id) == PackageManager.PERMISSION_GRANTED) {
+                                log.append("Permission already present");
+                                continue;
+                            }
+                            int protectionLevel = getIntField(permission, "protectionLevel");
+                            if (protectionLevel == PermissionInfo.PROTECTION_DANGEROUS) {
+                                log.append("Dangerous permission");
+                                preventExceptionFor = perm;
                                 try {
                                     callMethod(param.thisObject, "grantRuntimePermission", installed, perm, id);
                                 } catch (Throwable t) {
-                                    log.append("Failed for user " + id);
+                                    log.append("Failed with exception:", t);
                                 }
+                            } else {
+                                log.append("Try to treat as normal permission");
+                                callMethod(permissionState, "grantInstallPermission", permission);
                             }
-                        } else {
-                            log.append("try to treat as normal permission");
-                            callMethod(permissionState, "grantInstallPermission", permission);
+                            log.append("Permission added");
                         }
-                        log.append("Permission added: " + permission);
+                        Collection<String> grantedPerms = (Collection<String>) callMethod(permissionState, "getPermissions", id);
+                        for (String granted : grantedPerms) {
+                            if (!requestedPerms.contains(granted) && !newPerms.contains(granted)) {
+                                Object permission = callMethod(permissions, "get", granted);
+                                log.append("Permission " + granted + ": " + permission);
+                                int protectionLevel = getIntField(permission, "protectionLevel");
+                                if (protectionLevel == PermissionInfo.PROTECTION_DANGEROUS) {
+                                    log.append("Dangerous permission");
+                                    preventExceptionFor = granted;
+                                    try {
+                                        callMethod(param.thisObject, "revokeRuntimePermission", installed, granted, id);
+                                    } catch (Throwable t) {
+                                        log.append("Failed with exception:", t);
+                                    }
+                                } else {
+                                    log.append("Try to treat as normal permission");
+                                    callMethod(permissionState, "revokeInstallPermission", permission);
+                                }
+                                log.append("Permission removed");
+                            }
+                        }
                     }
                 }
             }
@@ -154,19 +202,21 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     }
 
     private void setupExceptionPreventive(Class packageManagerService) {
-        findAndHookMethod(packageManagerService, "enforceDeclaredAsUsedAndRuntimeOrDevelopmentPermission",
-                "android.content.pm.PackageParser$Package", "com.android.server.pm.BasePermission", new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                        List<String> newPerms = Strings.read(pref);
-                        String name = (String) getObjectField(param.args[1], "name");
-                        if (newPerms.contains(name)) {
-                            log.append("Prevented SecurityException for " + name);
-                            param.setResult(null);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            findAndHookMethod(packageManagerService, "enforceDeclaredAsUsedAndRuntimeOrDevelopmentPermission",
+                    "android.content.pm.PackageParser$Package", "com.android.server.pm.BasePermission", new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            String name = (String) getObjectField(param.args[1], "name");
+                            if (preventExceptionFor.equals(name)) {
+                                log.append("Prevented SecurityException for " + name);
+                                param.setResult(null);
+                                preventExceptionFor = null;
+                            }
                         }
-                    }
-                });
-        log.append("Hooked enforceDeclaredAsUsedAndRuntimeOrDevelopmentPermission");
+                    });
+            log.append("Hooked enforceDeclaredAsUsedAndRuntimeOrDevelopmentPermission");
+        }
     }
 
     private void setupSelfHook(Class mainActivity) {
@@ -210,16 +260,16 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     try {
                         log.append("Killing app");
                         ApplicationInfo appInfo = (ApplicationInfo) getObjectField(pkgInfo, "applicationInfo");
-                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR2)
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT)
                             callMethod(pmSvc, "killApplication", installed, appInfo.uid);
                         else
                             callMethod(pmSvc, "killApplication", installed, appInfo.uid, "apply App Settings");
                     } catch (Throwable t) {
-                        log.append("killing failed: " + Arrays.toString(t.getStackTrace()));
+                        log.append("killing failed with exception:", t);
                     }
                 }
             } catch (Throwable t) {
-                log.append("BroadcastReceiver failed: " + Arrays.toString(t.getStackTrace()));
+                log.append("BroadcastReceiver failed with exception:", t);
             }
         }
     }
@@ -237,8 +287,12 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
         public void append(String s) {
             if (doOutput) {
-                log("LLPermission: " + s);
+                log("[LLPermission] " + s);
             }
+        }
+
+        public void append(String s, Throwable t) {
+            append(s + "\n" + t.getMessage() + "\n" + TextUtils.join("\n", t.getStackTrace()));
         }
 
         public void setDoOutput(boolean doOutput) {

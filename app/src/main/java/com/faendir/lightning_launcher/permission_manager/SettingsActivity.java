@@ -31,10 +31,11 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 & Configuration.SCREENLAYOUT_SIZE_MASK) >= Configuration.SCREENLAYOUT_SIZE_XLARGE;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //noinspection deprecation
+        getPreferenceManager().setSharedPreferencesName(Strings.PREF_NAME);
         addPreferencesFromResource(R.xml.pref_general);
         setupActionBar();
     }
