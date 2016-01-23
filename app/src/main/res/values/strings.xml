@@ -4,7 +4,6 @@
     <string name="text_add">Add</string>
     <string name="action_save">Apply</string>
     <string name="toast_saved">Saved!</string>
-    <string name="toast_remove">Permissions are removed upon reboot</string>
     <string name="text_remove">Remove</string>
     <string name="text_no">No</string>
     <string name="text_yes">Yes</string>

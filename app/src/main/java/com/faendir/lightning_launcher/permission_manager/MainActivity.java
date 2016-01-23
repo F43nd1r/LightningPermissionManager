@@ -100,7 +100,6 @@ public class MainActivity extends AppCompatActivity {
         save();
         Intent applyIntent = new Intent(Strings.INTENT_UPDATE);
         applyIntent.putExtra(Strings.KEY_ACTION, Strings.ACTION_PERMISSIONS);
-        applyIntent.putExtra(Strings.KEY_KILL, preferences.getBoolean(Strings.KEY_KILL, true));
         sendBroadcast(applyIntent, null);
         updateAdapter();
         Toast.makeText(this, R.string.toast_saved, Toast.LENGTH_SHORT).show();

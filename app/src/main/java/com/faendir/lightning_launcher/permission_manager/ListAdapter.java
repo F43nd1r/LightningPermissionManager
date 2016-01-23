@@ -12,8 +12,9 @@ import java.util.List;
 
 /**
  * Created by Lukas on 23.01.2016.
+ * Marks not granted permissions red.
  */
-public class ListAdapter extends ArrayAdapter<String> {
+class ListAdapter extends ArrayAdapter<String> {
     private final Context context;
 
     public ListAdapter(Context context, List<String> objects) {
