@@ -179,7 +179,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 Object permission = callMethod(permissions, "get", perm);
                 log.append("Permission " + perm + ": " + permission);
                 if (permission == null) continue;
-                if (callMethod(packageManagerService, "checkPermission", perm, pkgName) == PackageManager.PERMISSION_GRANTED) {
+                if ((int) callMethod(packageManagerService, "checkPermission", perm, pkgName) == PackageManager.PERMISSION_GRANTED) {
                     log.append("Permission already present");
                     continue;
                 }
@@ -224,7 +224,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 Object permission = callMethod(permissions, "get", perm);
                 log.append("Permission " + perm + ": " + permission);
                 if (permission == null) continue;
-                if (callMethod(packageManagerService, "checkPermission", perm, pkgName, userId) == PackageManager.PERMISSION_GRANTED) {
+                if ((int) callMethod(packageManagerService, "checkPermission", perm, pkgName, userId) == PackageManager.PERMISSION_GRANTED) {
                     log.append("Permission already present");
                     continue;
                 }
