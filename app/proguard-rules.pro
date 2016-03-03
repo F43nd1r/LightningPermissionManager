@@ -15,3 +15,8 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+-keepattributes SourceFile, Exceptions, LineNumberTable, Signature
+
+-keep class com.faendir.lightning_launcher.permission_manager.Hook {*;}
+-keep class com.faendir.lightning_launcher.permission_manager.MainActivity {*;}
+-dontwarn android.support.**
