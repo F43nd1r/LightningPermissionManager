@@ -280,7 +280,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                                 String name = (String) getObjectField(param.args[1], "name");
-                                if (preventExceptionFor.equals(name)) {
+                                if (preventExceptionFor != null && preventExceptionFor.equals(name)) {
                                     log.append("Prevented SecurityException for " + name);
                                     param.setResult(null);
                                     preventExceptionFor = null;
