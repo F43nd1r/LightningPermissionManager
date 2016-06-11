@@ -1,18 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
     <TextView
+        android:id="@android:id/text1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@android:id/text1"
+        android:ellipsize="none"
         android:gravity="center_vertical"
+        android:maxLines="3"
+        android:minHeight="10dp"
         android:paddingLeft="2dp"
         android:paddingRight="2dp"
-        android:minHeight="10dp"
-        android:maxLines="3"
-        android:ellipsize="none"
         android:scrollHorizontally="false"
-        android:singleLine="false"/>
+        android:singleLine="false"
+        android:textSize="16sp"
+        android:textColor="@color/abc_primary_text_material_light" />
+
+    <TextView
+        android:id="@android:id/text2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="none"
+        android:gravity="center_vertical"
+        android:maxLines="3"
+        android:minHeight="10dp"
+        android:paddingLeft="2dp"
+        android:paddingRight="2dp"
+        android:scrollHorizontally="false"
+        android:singleLine="false"
+        android:textSize="12sp"
+        android:textColor="@color/abc_secondary_text_material_light" />
 
 </LinearLayout>

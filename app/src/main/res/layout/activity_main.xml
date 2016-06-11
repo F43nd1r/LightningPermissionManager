@@ -19,9 +19,9 @@
             android:layout_height="wrap_content"
             android:id="@+id/autoCompleteTextView"
             android:enabled="true"
-            android:maxLines="3"
             android:layout_weight="1"
-            android:inputType="textNoSuggestions|textMultiLine"/>
+            android:scrollHorizontally="true"
+            android:inputType="textNoSuggestions"/>
 
         <Button
             android:layout_width="wrap_content"

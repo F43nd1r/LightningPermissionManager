@@ -3,6 +3,7 @@ package com.faendir.lightning_launcher.permission_manager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -18,18 +19,26 @@ class ListAdapter extends ArrayAdapter<String> {
     private final Context context;
 
     public ListAdapter(Context context, List<String> objects) {
-        super(context, android.R.layout.simple_list_item_1, objects);
+        super(context, 0, objects);
         this.context = context;
     }
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        TextView v = (TextView) super.getView(position, convertView, parent);
-        if (!isGranted(position)) {
-            v.setTextColor(Color.RED);
+        View v = convertView;
+        if (v == null) {
+            v = LayoutInflater.from(getContext()).inflate(R.layout.list_item, parent, false);
         }
-        else {
-            v.setTextColor(Color.BLACK);
+        TextView title = (TextView) v.findViewById(android.R.id.text1);
+        TextView domain = (TextView) v.findViewById(android.R.id.text2);
+        String perm = getItem(position);
+        int index = perm.lastIndexOf('.');
+        title.setText(perm.substring(index + 1));
+        domain.setText(perm.substring(0, index));
+        if (!isGranted(position)) {
+            title.setTextColor(Color.RED);
+        } else {
+            title.setTextColor(Color.BLACK);
         }
         return v;
     }
