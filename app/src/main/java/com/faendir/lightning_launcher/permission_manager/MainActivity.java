@@ -157,6 +157,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupLayout() {
         setContentView(R.layout.activity_main);
         textView = (AutoCompleteTextView) findViewById(R.id.autoCompleteTextView);
+        assert textView != null;
         textView.setDropDownAnchor(R.id.linearLayout);
         textView.setThreshold(0);
         ArrayList<String> permissions = new ArrayList<>();
@@ -185,6 +186,7 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ListAdapter(this, list);
         updateAdapter();
         ListView listView = (ListView) findViewById(R.id.listView);
+        assert listView != null;
         listView.setAdapter(adapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
