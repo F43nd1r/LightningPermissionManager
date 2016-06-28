@@ -8,5 +8,9 @@
         android:summary="@string/summary_kill"
         android:title="@string/title_kill"
         android:defaultValue="true"/>
+    <SwitchPreference
+        android:key="acra.enable"
+        android:title="@string/pref_acraEnable"
+        android:defaultValue="true"/>
 
 </PreferenceScreen>

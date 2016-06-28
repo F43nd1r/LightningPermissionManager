@@ -41,11 +41,20 @@ public class MainActivity extends AppCompatActivity {
             //noinspection deprecation
             preferences = getSharedPreferences(Strings.PREF_NAME, MODE_WORLD_READABLE);
             setupLayout();
+            onNewIntent(getIntent());
         } else {
             notHookedDialog();
         }
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (getString(R.string.action_request).equals(intent.getAction()) && intent.hasExtra(getString(R.string.extra_permission))) {
+            String permission = intent.getStringExtra(getString(R.string.extra_permission));
+            add(permission);
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -86,7 +95,11 @@ public class MainActivity extends AppCompatActivity {
 
     public void onAdd(View v) {
         if (list == null) return;
-        list.add(textView.getText().toString());
+        add(textView.getText().toString());
+    }
+
+    private void add(String perm) {
+        list.add(perm);
         updateAdapter();
         save();
         textView.setText("");
@@ -145,8 +158,10 @@ public class MainActivity extends AppCompatActivity {
                         Intent i;
                         if (finalInstalled)
                             i = pm.getLaunchIntentForPackage(getString(R.string.xposed));
-                        else i = new Intent(Intent.ACTION_VIEW);
-                        i.setData(Uri.parse(getString(R.string.link_xposed)));
+                        else {
+                            i = new Intent(Intent.ACTION_VIEW);
+                            i.setData(Uri.parse(getString(R.string.link_xposed)));
+                        }
                         startActivity(i);
                         finish();
                     }

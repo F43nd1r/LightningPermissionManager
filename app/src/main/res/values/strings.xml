@@ -24,4 +24,8 @@
     <string name="summary_kill">This helps to apply new Permissions</string>
     <string name="title_kill">Kill LL when applying</string>
     <string name="activity_name">LL Permission Manager</string>
+    <string name="action_request">com.faendir.lightning_launcher.permission_manager.REQUEST_PERMISSION</string>
+    <string name="extra_permission">permission</string>
+    <string name="acra_toast">Permission Manager crashed. Sending report…</string>
+    <string name="pref_acraEnable">Enable bug reports</string>
 </resources>

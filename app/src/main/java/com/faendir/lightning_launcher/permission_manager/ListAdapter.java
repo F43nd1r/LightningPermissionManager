@@ -34,7 +34,7 @@ class ListAdapter extends ArrayAdapter<String> {
         String perm = getItem(position);
         int index = perm.lastIndexOf('.');
         title.setText(perm.substring(index + 1));
-        domain.setText(perm.substring(0, index));
+        domain.setText(index != -1 ? perm.substring(0, index) : "");
         if (!isGranted(position)) {
             title.setTextColor(Color.RED);
         } else {

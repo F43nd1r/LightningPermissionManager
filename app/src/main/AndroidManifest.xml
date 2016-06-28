@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          xmlns:tools="http://schemas.android.com/tools"
-          package="com.faendir.lightning_launcher.permission_manager">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.faendir.lightning_launcher.permission_manager">
+
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".PermissionManager"
         android:allowBackup="true"
         android:allowClearUserData="true"
         android:icon="@drawable/ic_permission_manager"
@@ -13,21 +16,31 @@
             android:name=".MainActivity"
             android:label="@string/activity_name">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <activity-alias
+            android:name=".RequestFilter"
+            android:enabled="true"
+            android:exported="true"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="com.faendir.lightning_launcher.permission_manager.REQUEST_PERMISSION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
         <meta-data
             android:name="xposedmodule"
-            android:value="true"/>
+            android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Grants Lightning Launcher additional permissions"/>
+            android:value="Grants Lightning Launcher additional permissions" />
         <meta-data
             android:name="xposedminversion"
-            android:value="54"/>
+            android:value="54" />
 
         <activity
             android:name=".SettingsActivity"
@@ -36,8 +49,19 @@
             tools:ignore="UnusedAttribute">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.faendir.lightning_launcher.permission_manager.MainActivity"/>
+                android:value="com.faendir.lightning_launcher.permission_manager.MainActivity" />
         </activity>
+
+        <receiver
+            android:name=".ExceptionReceiver"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.faendir.lightning_launcher.permission_manager.HANDLE_EXCEPTION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -18,6 +18,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -46,43 +48,72 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private XSharedPreferences pref;
     private String installed;
     private final Log log;
-    private String preventExceptionFor = null;
+    private String preventExceptionFor;
+    private final BlockingQueue<Throwable> errors;
 
     @SuppressWarnings("WeakerAccess")
     public Hook() {
         log = new Log();
+        preventExceptionFor = null;
+        errors = new LinkedBlockingQueue<>();
     }
 
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
-        pref = new XSharedPreferences(this.getClass().getPackage().getName(), Strings.PREF_NAME);
-        pref.makeWorldReadable();
-        log.append("Prefs now WorldReadable");
-        if (pref.contains(Strings.KEY_LOG)) {
-            boolean doLog = pref.getBoolean(Strings.KEY_LOG, log.doesOutput());
-            boolean enable = doLog && !log.doesOutput();
-            log.append("Prefs request to disable logs: " + !doLog);
-            log.setDoOutput(doLog);
-            if (enable) log.append("Enabled Logs");
+        try {
+            pref = new XSharedPreferences(this.getClass().getPackage().getName(), Strings.PREF_NAME);
+            pref.makeWorldReadable();
+            log.append("Prefs now WorldReadable");
+            if (pref.contains(Strings.KEY_LOG)) {
+                boolean doLog = pref.getBoolean(Strings.KEY_LOG, log.doesOutput());
+                boolean enable = doLog && !log.doesOutput();
+                log.append("Prefs request to disable logs: " + !doLog);
+                log.setDoOutput(doLog);
+                if (enable) log.append("Enabled Logs");
+            }
+        } catch (Throwable t) {
+            errors.put(t);
         }
     }
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
-        if (loadPackageParam.packageName.equals("android")) {
-            log.append("Hooked android package");
-            try {
-                Class<?> packageManagerService = findClass("com.android.server.pm.PackageManagerService", loadPackageParam.classLoader);
-                setupReceiver(packageManagerService);
-                setupGranter(packageManagerService, loadPackageParam.classLoader);
-                setupExceptionPreventive(packageManagerService);
-            } catch (XposedHelpers.ClassNotFoundError e) {
-                log.error("---FAILED TO FIND PACKAGE_MANAGER_SERVICE -> HOOK IS INACTIVE---", e);
+        try {
+            if (loadPackageParam.packageName.equals("android")) {
+                log.append("Hooked android package");
+                try {
+                    Class<?> packageManagerService = findClass("com.android.server.pm.PackageManagerService", loadPackageParam.classLoader);
+                    setupReceiver(packageManagerService);
+                    setupGranter(packageManagerService, loadPackageParam.classLoader);
+                    setupExceptionPreventive(packageManagerService);
+                } catch (XposedHelpers.ClassNotFoundError e) {
+                    log.error("---FAILED TO FIND PACKAGE_MANAGER_SERVICE -> HOOK IS INACTIVE---", e);
+                    throw e;
+                }
+            } else if (loadPackageParam.packageName.equals(Strings.PKG)) {
+                log.append("Hooked own package");
+                setupSelfHook(loadPackageParam.classLoader);
             }
-        } else if (loadPackageParam.packageName.equals(Strings.PKG)) {
-            log.append("Hooked own package");
-            setupSelfHook(loadPackageParam.classLoader);
+        } catch (Throwable t) {
+            errors.put(t);
         }
+    }
+
+    private void startErrorReporter(final Context context) {
+        new Thread() {
+            @Override
+            public void run() {
+                while (!interrupted()) {
+                    try {
+                        Throwable t = errors.take();
+                        Intent i = new Intent(Strings.INTENT_EXCEPTION);
+                        i.putExtra(Strings.KEY_EXCEPTION, t);
+                        context.sendBroadcast(i);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+        }.start();
     }
 
     private void setupReceiver(@NonNull Class packageManagerService) {
@@ -91,15 +122,21 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param)
                         throws Throwable {
-                    Context context = (Context) getObjectField(param.thisObject, "mContext");
-                    context.registerReceiver(new PermissionUpdateReceiver(param.thisObject),
-                            new IntentFilter(Strings.INTENT_UPDATE));
-                    log.append("Registered Receiver");
+                    try {
+                        Context context = (Context) getObjectField(param.thisObject, "mContext");
+                        startErrorReporter(context);
+                        context.registerReceiver(new PermissionUpdateReceiver(param.thisObject),
+                                new IntentFilter(Strings.INTENT_UPDATE));
+                        log.append("Registered Receiver");
+                    } catch (Throwable t) {
+                        errors.put(t);
+                    }
                 }
             });
             log.append("Hooked systemReady");
         } catch (NoSuchMethodError | IllegalArgumentException e) {
             log.error("---FAILED TO HOOK SYSTEM_READY -> LIVE APPLYING WILL NOT WORK---", e);
+            throw e;
         }
     }
 
@@ -108,55 +145,61 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 try {
-                    String pkgName = (String) getObjectField(param.args[0], "packageName");
-                    if (!(pkgName.equals(Strings.LLX) || pkgName.equals(Strings.LL))) return;
-                    installed = pkgName;
-                    log.append("Granting Permissions to: " + installed);
-                    Object extras = getObjectField(param.args[0], "mExtras");
-                    Object settings = getObjectField(param.thisObject, "mSettings");
-                    Object permissions = getObjectField(settings, "mPermissions");
-                    Collection<String> requestedPerms = null;
                     try {
-                        requestedPerms = (Collection<String>) getObjectField(param.args[0], "requestedPermissions");
-                    } catch (NoSuchFieldError | ClassCastException e) {
-                        log.append("Failed to get requested permissions. Old permissions won't be removed until reboot.", e);
-                    }
-                    List<String> newPerms = Strings.read(pref);
-                    log.append("Adding permissions: " + Arrays.toString(newPerms.toArray()));
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-                        Object sharedUser = null;
+                        String pkgName = (String) getObjectField(param.args[0], "packageName");
+                        if (!(pkgName.equals(Strings.LLX) || pkgName.equals(Strings.LL))) return;
+                        installed = pkgName;
+                        log.append("Granting Permissions to: " + installed);
+                        Object extras = getObjectField(param.args[0], "mExtras");
+                        Object settings = getObjectField(param.thisObject, "mSettings");
+                        Object permissions = getObjectField(settings, "mPermissions");
+                        Collection<String> requestedPerms = null;
                         try {
-                            sharedUser = getObjectField(extras, "sharedUser");
-                        } catch (NoSuchFieldError ignored) {
+                            requestedPerms = (Collection<String>) getObjectField(param.args[0], "requestedPermissions");
+                        } catch (NoSuchFieldError | ClassCastException e) {
+                            log.append("Failed to get requested permissions. Old permissions won't be removed until reboot.", e);
                         }
-                        log.append("Shared User exists: " + (sharedUser != null));
-                        Collection<String> grantedPerms;
-                        if (sharedUser == null) {
-                            grantedPerms = (Collection<String>) getObjectField(extras, "grantedPermissions");
-                        } else {
-                            grantedPerms = (Collection<String>) getObjectField(sharedUser, "grantedPermissions");
-                        }
-                        grantPermsPreM(pkgName, newPerms, grantedPerms, param.thisObject, permissions, extras, sharedUser);
-                        if (requestedPerms != null) {
-                            revokePermsPreM(newPerms, grantedPerms, requestedPerms, param.thisObject, permissions, extras, sharedUser);
-                        }
-                    } else {
-                        Class userManagerService = findClass("com.android.server.pm.UserManagerService", classLoader);
-                        Object permissionState = callMethod(extras, "getPermissionsState");
-                        Object userService = callStaticMethod(userManagerService, "getInstance");
-                        int[] userIds = (int[]) callMethod(userService, "getUserIds");
-                        for (int id : userIds) {
-                            log.append("user: " + id);
-                            grantPermsPostM(pkgName, newPerms, param.thisObject, permissions, permissionState, id);
+                        List<String> newPerms = Strings.read(pref);
+                        log.append("Adding permissions: " + Arrays.toString(newPerms.toArray()));
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                            Object sharedUser = null;
+                            try {
+                                sharedUser = getObjectField(extras, "sharedUser");
+                            } catch (NoSuchFieldError ignored) {
+                            }
+                            log.append("Shared User exists: " + (sharedUser != null));
+                            Collection<String> grantedPerms;
+                            if (sharedUser == null) {
+                                grantedPerms = (Collection<String>) getObjectField(extras, "grantedPermissions");
+                            } else {
+                                grantedPerms = (Collection<String>) getObjectField(sharedUser, "grantedPermissions");
+                            }
+                            grantPermsPreM(pkgName, newPerms, grantedPerms, param.thisObject, permissions, extras, sharedUser);
                             if (requestedPerms != null) {
-                                revokePermsPostM(newPerms, requestedPerms, param.thisObject, permissions, permissionState, id);
+                                revokePermsPreM(newPerms, grantedPerms, requestedPerms, param.thisObject, permissions, extras, sharedUser);
+                            }
+                        } else {
+                            Class userManagerService = findClass("com.android.server.pm.UserManagerService", classLoader);
+                            Object permissionState = callMethod(extras, "getPermissionsState");
+                            Object userService = callStaticMethod(userManagerService, "getInstance");
+                            int[] userIds = (int[]) callMethod(userService, "getUserIds");
+                            for (int id : userIds) {
+                                log.append("user: " + id);
+                                grantPermsPostM(pkgName, newPerms, param.thisObject, permissions, permissionState, id);
+                                if (requestedPerms != null) {
+                                    revokePermsPostM(newPerms, requestedPerms, param.thisObject, permissions, permissionState, id);
+                                }
                             }
                         }
+                    } catch (NoSuchFieldError | ClassCastException e) {
+                        log.error("---NOT ALL FIELDS FOUND OR INVALID FIELDS -> HOOK IS BROKEN---", e);
+                        throw e;
+                    } catch (NoSuchMethodError | IllegalArgumentException e) {
+                        log.error("---NOT ALL METHODS COULD BE CALLED -> HOOK IS BROKEN---", e);
+                        throw e;
                     }
-                } catch (NoSuchFieldError | ClassCastException e) {
-                    log.error("---NOT ALL FIELDS FOUND OR INVALID FIELDS -> HOOK IS BROKEN---", e);
-                } catch (NoSuchMethodError | IllegalArgumentException e) {
-                    log.error("---NOT ALL METHODS COULD BE CALLED -> HOOK IS BROKEN---", e);
+                } catch (Throwable t) {
+                    errors.put(t);
                 }
             }
         };
@@ -169,6 +212,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
             log.append("Hooked grantPermissionsLPw");
         } catch (NoSuchMethodError e) {
             log.error("---FAILED TO HOOK GRANT_PERMISSIONS_LPW -> HOOK IS INACTIVE---", e);
+            throw e;
         }
     }
 
@@ -191,6 +235,10 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 log.append("Permission added");
             } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException e) {
                 log.append("Failed to grant Permission " + perm);
+                try {
+                    errors.put(e);
+                } catch (InterruptedException ignored) {
+                }
             }
         }
     }
@@ -211,6 +259,10 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     log.append("Permission removed");
                 } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException e) {
                     log.append("Failed to revoke Permission " + granted);
+                    try {
+                        errors.put(e);
+                    } catch (InterruptedException ignored) {
+                    }
                 }
             }
         }
@@ -240,6 +292,10 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 log.append("Permission added");
             } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException | SecurityException e) {
                 log.append("Failed to grant Permission " + perm);
+                try {
+                    errors.put(e);
+                } catch (InterruptedException ignored) {
+                }
             }
         }
     }
@@ -266,6 +322,10 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
                 } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException | SecurityException e) {
                     log.append("Failed to revoke Permission " + granted);
+                    try {
+                        errors.put(e);
+                    } catch (InterruptedException ignored) {
+                    }
                 }
             }
         }
@@ -279,17 +339,22 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         "android.content.pm.PackageParser$Package", "com.android.server.pm.BasePermission", new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                String name = (String) getObjectField(param.args[1], "name");
-                                if (preventExceptionFor != null && preventExceptionFor.equals(name)) {
-                                    log.append("Prevented SecurityException for " + name);
-                                    param.setResult(null);
-                                    preventExceptionFor = null;
+                                try {
+                                    String name = (String) getObjectField(param.args[1], "name");
+                                    if (preventExceptionFor != null && preventExceptionFor.equals(name)) {
+                                        log.append("Prevented SecurityException for " + name);
+                                        param.setResult(null);
+                                        preventExceptionFor = null;
+                                    }
+                                } catch (Throwable t) {
+                                    errors.put(t);
                                 }
                             }
                         });
                 log.append("Hooked enforceDeclaredAsUsedAndRuntimeOrDevelopmentPermission");
             } catch (NoSuchMethodError e) {
                 log.error("---FAILED TO HOOK ENFORCE_DECLARED_AS_USED_AND_RUNTIME_OR_DEVELOPMENT_PERMISSION -> WON'T BE ABLE TO GRANT DANGEROUS PERMISSIONS---", e);
+                throw e;
             }
         }
     }
@@ -301,6 +366,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
             log.append("Hooked self");
         } catch (XposedHelpers.ClassNotFoundError | NoSuchMethodError e) {
             log.error("---FAILED TO HOOK SELF -> INSTALLATION IS BROKEN---", e);
+            throw e;
         }
     }
 
@@ -323,34 +389,42 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            log.append("Received Broadcast");
-            if (!Strings.ACTION_PERMISSIONS.equals(intent.getExtras().getString(Strings.KEY_ACTION)))
-                return;
             try {
-                pref.reload();
-                boolean killApp = pref.getBoolean(Strings.KEY_KILL, false);
-                synchronized (mPackages) {
-                    Object pkgInfo = mPackages.get(installed);
-                    log.append("Calling grantPermissionsLPw for: " + installed + " (" + pkgInfo + ")");
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                        callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true);
-                    } else {
-                        callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true, installed);
-                    }
-                    log.append("Calling writeLPr");
-                    callMethod(mSettings, "writeLPr");
-                    if (killApp) {
-                        log.append("Killing app");
-                        ApplicationInfo appInfo = (ApplicationInfo) getObjectField(pkgInfo, "applicationInfo");
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                            callMethod(packageManagerService, "killApplication", installed, appInfo.uid);
+                log.append("Received Broadcast");
+                if (!Strings.ACTION_PERMISSIONS.equals(intent.getExtras().getString(Strings.KEY_ACTION)))
+                    return;
+                try {
+                    pref.reload();
+                    boolean killApp = pref.getBoolean(Strings.KEY_KILL, false);
+                    synchronized (mPackages) {
+                        Object pkgInfo = mPackages.get(installed);
+                        log.append("Calling grantPermissionsLPw for: " + installed + " (" + pkgInfo + ")");
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                            callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true);
                         } else {
-                            callMethod(packageManagerService, "killApplication", installed, appInfo.uid, "apply App Settings");
+                            callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true, installed);
+                        }
+                        log.append("Calling writeLPr");
+                        callMethod(mSettings, "writeLPr");
+                        if (killApp) {
+                            log.append("Killing app");
+                            ApplicationInfo appInfo = (ApplicationInfo) getObjectField(pkgInfo, "applicationInfo");
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                                callMethod(packageManagerService, "killApplication", installed, appInfo.uid);
+                            } else {
+                                callMethod(packageManagerService, "killApplication", installed, appInfo.uid, "apply App Settings");
+                            }
                         }
                     }
+                } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException e) {
+                    log.append("BroadcastReceiver failed with exception:", e);
+                    throw e;
                 }
-            } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException e) {
-                log.append("BroadcastReceiver failed with exception:", e);
+            } catch (Throwable t) {
+                try {
+                    errors.put(t);
+                } catch (InterruptedException ignored) {
+                }
             }
         }
     }

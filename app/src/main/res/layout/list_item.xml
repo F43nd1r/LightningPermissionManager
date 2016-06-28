@@ -16,7 +16,6 @@
         android:paddingLeft="2dp"
         android:paddingRight="2dp"
         android:scrollHorizontally="false"
-        android:singleLine="false"
         android:textColor="@color/abc_primary_text_material_light"
         android:textSize="16sp"
         tools:ignore="PrivateResource" />
@@ -32,7 +31,6 @@
         android:paddingLeft="2dp"
         android:paddingRight="2dp"
         android:scrollHorizontally="false"
-        android:singleLine="false"
         android:textColor="@color/abc_secondary_text_material_light"
         android:textSize="12sp"
         tools:ignore="PrivateResource" />

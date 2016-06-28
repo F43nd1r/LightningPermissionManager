@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion "21.1.2"
+    compileSdkVersion 24
+    buildToolsVersion "24"
 
     defaultConfig {
         applicationId "com.faendir.lightning_launcher.permission_manager"
         minSdkVersion 11
-        targetSdkVersion 23
+        targetSdkVersion 24
         versionCode 12
         versionName "1.6"
     }
@@ -25,5 +25,6 @@ android {
 
 dependencies {
     provided 'de.robv.android.xposed:api:82'
-    compile 'com.android.support:appcompat-v7:23.4.0'
+    compile 'com.android.support:appcompat-v7:24.0.0'
+    compile 'ch.acra:acra:4.9.0'
 }
