@@ -37,9 +37,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        preferences = getSharedPreferences(Strings.PREF_NAME, MODE_WORLD_READABLE);
         if (isHooked()) {
             //noinspection deprecation
-            preferences = getSharedPreferences(Strings.PREF_NAME, MODE_WORLD_READABLE);
             setupLayout();
             onNewIntent(getIntent());
         } else {

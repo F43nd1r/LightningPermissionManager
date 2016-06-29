@@ -8,8 +8,8 @@ android {
         applicationId "com.faendir.lightning_launcher.permission_manager"
         minSdkVersion 11
         targetSdkVersion 24
-        versionCode 13
-        versionName "1.7"
+        versionCode 14
+        versionName "1.7.1"
     }
     buildTypes {
         release {
