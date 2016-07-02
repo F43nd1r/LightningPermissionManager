@@ -68,7 +68,9 @@ public class MainActivity extends AppCompatActivity {
 
         switch (id) {
             case R.id.action_save:
-                saveAndApply();
+                if(list != null) {
+                    saveAndApply();
+                }
                 return true;
             case R.id.action_settings:
                 startActivity(new Intent(this, SettingsActivity.class));
