@@ -30,12 +30,7 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
-import static de.robv.android.xposed.XposedHelpers.callMethod;
-import static de.robv.android.xposed.XposedHelpers.callStaticMethod;
-import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
-import static de.robv.android.xposed.XposedHelpers.findClass;
-import static de.robv.android.xposed.XposedHelpers.getIntField;
-import static de.robv.android.xposed.XposedHelpers.getObjectField;
+import static de.robv.android.xposed.XposedHelpers.*;
 
 /**
  * Created by Lukas on 25.03.2015.
@@ -105,7 +100,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
             public void run() {
                 while (!interrupted()) {
                     try {
-                        Throwable t = errors.take();
+                        Throwable t = unwrap(errors.take());
                         Intent i = new Intent(Strings.INTENT_EXCEPTION);
                         i.putExtra(Strings.KEY_EXCEPTION, t);
                         context.sendBroadcast(i);
@@ -114,6 +109,15 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 }
             }
         }.start();
+    }
+
+    private Throwable unwrap(Throwable t){
+        if(t instanceof XposedHelpers.InvocationTargetError){
+            return t.getCause();
+        }else if (t instanceof IllegalAccessError){
+            return new IllegalAccessException(t.getMessage());
+        }
+        return t;
     }
 
     private void setupReceiver(@NonNull Class packageManagerService) {
@@ -398,22 +402,26 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     boolean killApp = pref.getBoolean(Strings.KEY_KILL, false);
                     synchronized (mPackages) {
                         Object pkgInfo = mPackages.get(installed);
-                        log.append("Calling grantPermissionsLPw for: " + installed + " (" + pkgInfo + ")");
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                            callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true);
-                        } else {
-                            callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true, installed);
-                        }
-                        log.append("Calling writeLPr");
-                        callMethod(mSettings, "writeLPr");
-                        if (killApp) {
-                            log.append("Killing app");
-                            ApplicationInfo appInfo = (ApplicationInfo) getObjectField(pkgInfo, "applicationInfo");
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                                callMethod(packageManagerService, "killApplication", installed, appInfo.uid);
+                        if (pkgInfo != null) {
+                            log.append("Calling grantPermissionsLPw for: " + installed + " (" + pkgInfo + ")");
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                                callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true);
                             } else {
-                                callMethod(packageManagerService, "killApplication", installed, appInfo.uid, "apply App Settings");
+                                callMethod(packageManagerService, "grantPermissionsLPw", pkgInfo, true, installed);
                             }
+                            log.append("Calling writeLPr");
+                            callMethod(mSettings, "writeLPr");
+                            if (killApp) {
+                                log.append("Killing app");
+                                ApplicationInfo appInfo = (ApplicationInfo) getObjectField(pkgInfo, "applicationInfo");
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                                    callMethod(packageManagerService, "killApplication", installed, appInfo.uid);
+                                } else {
+                                    callMethod(packageManagerService, "killApplication", installed, appInfo.uid, "apply App Settings");
+                                }
+                            }
+                        } else {
+                            log.append("Failed to find package info, will not apply new permissions.");
                         }
                     }
                 } catch (NoSuchMethodError | IllegalArgumentException | NoSuchFieldError | ClassCastException e) {
@@ -456,7 +464,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         }
 
         private String throwableToString(String s, Throwable t) {
-            return s + "\n" + t.getMessage() + "\n" + TextUtils.join("\n", t.getStackTrace());
+            return s + "\n" + t.getClass().getName() + " : " + t.getMessage() + "\n" + TextUtils.join("\n", t.getStackTrace());
         }
 
         public void setDoOutput(boolean doOutput) {

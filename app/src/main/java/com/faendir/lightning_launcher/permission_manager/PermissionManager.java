@@ -18,7 +18,8 @@ import org.acra.sender.HttpSender;
         formUriBasicAuthLogin = "permission_manager",
         formUriBasicAuthPassword = "pmR3p0rt",
         mode = ReportingInteractionMode.TOAST,
-        resToastText = R.string.acra_toast
+        resToastText = R.string.acra_toast,
+        buildConfigClass = BuildConfig.class
 )
 public class PermissionManager extends Application {
     @Override

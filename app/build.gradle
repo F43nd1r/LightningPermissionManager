@@ -8,8 +8,8 @@ android {
         applicationId "com.faendir.lightning_launcher.permission_manager"
         minSdkVersion 11
         targetSdkVersion 24
-        versionCode 15
-        versionName "1.7.2"
+        versionCode 16
+        versionName "1.7.3"
     }
     buildTypes {
         release {
@@ -25,6 +25,6 @@ android {
 
 dependencies {
     provided 'de.robv.android.xposed:api:82'
-    compile 'com.android.support:appcompat-v7:24.0.0'
+    compile 'com.android.support:appcompat-v7:24.2.0'
     compile 'ch.acra:acra:4.9.0'
 }
