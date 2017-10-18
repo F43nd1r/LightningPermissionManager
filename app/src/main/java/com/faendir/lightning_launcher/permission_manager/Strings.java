@@ -20,7 +20,7 @@ class Strings {
     static final String LLX = "net.pierrox.lightning_launcher_extreme";
     static final String LL = "net.pierrox.lightning_launcher";
     static final String PREF_NAME = "Settings";
-    private static final String KEY_PERMISSIONS = "Permissions";
+    static final String KEY_PERMISSIONS = "Permissions";
     static final String KEY_LOG = "Log";
     static final String ACTION_PERMISSIONS = "update";
     static final String KEY_ACTION = "action";
@@ -35,9 +35,12 @@ class Strings {
     }
 
     public static List<String> read(SharedPreferences preferences) {
+        return read(preferences.getString(KEY_PERMISSIONS, ""));
+    }
+
+    public static List<String> read(String s) {
         ArrayList<String> list = new ArrayList<>();
-        String s = preferences.getString(KEY_PERMISSIONS, "");
-        if (s.equals("") || s.equals("[]")) return list;
+        if (s == null || s.equals("") || s.equals("[]")) return list;
         try {
             JSONArray array = new JSONArray(s);
             for (int i = 0; i < array.length(); i++) {
@@ -48,5 +51,6 @@ class Strings {
             e.printStackTrace();
         }
         return new ArrayList<>();
+
     }
 }

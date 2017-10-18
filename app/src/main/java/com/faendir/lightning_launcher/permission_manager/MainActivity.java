@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.Keep;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -20,12 +21,15 @@ import android.widget.AutoCompleteTextView;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import de.robv.android.xposed.XSharedPreferences;
 
+@Keep
 public class MainActivity extends AppCompatActivity {
 
     private ArrayAdapter<String> adapter;
@@ -37,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        preferences = getSharedPreferences(Strings.PREF_NAME, MODE_WORLD_READABLE);
+        preferences = getSharedPreferences(Strings.PREF_NAME, MODE_PRIVATE);
         if (isHooked()) {
             //noinspection deprecation
             setupLayout();
@@ -115,6 +119,8 @@ public class MainActivity extends AppCompatActivity {
         save();
         Intent applyIntent = new Intent(Strings.INTENT_UPDATE);
         applyIntent.putExtra(Strings.KEY_ACTION, Strings.ACTION_PERMISSIONS);
+        applyIntent.putExtra(Strings.KEY_KILL, preferences.getBoolean(Strings.KEY_KILL, true));
+        applyIntent.putExtra(Strings.KEY_PERMISSIONS, preferences.getString(Strings.KEY_PERMISSIONS, ""));
         sendBroadcast(applyIntent, null);
         updateAdapter();
         Toast.makeText(this, R.string.toast_saved, Toast.LENGTH_SHORT).show();

@@ -1,15 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion "24"
+    compileSdkVersion 26
+    buildToolsVersion '26.0.2'
 
     defaultConfig {
         applicationId "com.faendir.lightning_launcher.permission_manager"
-        minSdkVersion 11
-        targetSdkVersion 24
-        versionCode 16
-        versionName "1.7.3"
+        minSdkVersion 14
+        targetSdkVersion 26
+        versionCode 17
+        versionName "1.8"
     }
     buildTypes {
         release {
@@ -17,14 +17,14 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
-            minifyEnabled true
+            minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
 
 dependencies {
-    provided 'de.robv.android.xposed:api:82'
-    compile 'com.android.support:appcompat-v7:24.2.0'
-    compile 'ch.acra:acra:4.9.0'
+    compileOnly 'de.robv.android.xposed:api:82'
+    implementation 'com.android.support:appcompat-v7:26.1.0'
+    implementation 'com.faendir:acra:4.10.0'
 }

@@ -9,6 +9,8 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
 import android.os.Build;
+import android.os.Bundle;
+import android.support.annotation.Keep;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
@@ -30,17 +32,23 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
-import static de.robv.android.xposed.XposedHelpers.*;
+import static de.robv.android.xposed.XposedHelpers.callMethod;
+import static de.robv.android.xposed.XposedHelpers.callStaticMethod;
+import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
+import static de.robv.android.xposed.XposedHelpers.findClass;
+import static de.robv.android.xposed.XposedHelpers.getIntField;
+import static de.robv.android.xposed.XposedHelpers.getObjectField;
 
 /**
  * Created by Lukas on 25.03.2015.
  * Xposed Hook
  */
 @SuppressWarnings({"unchecked", "WeakerAccess"})
+@Keep
 public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
 
-    private XSharedPreferences pref;
+    private List<String> perms;
     private String installed;
     private final Log log;
     private String preventExceptionFor;
@@ -56,7 +64,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
         try {
-            pref = new XSharedPreferences(this.getClass().getPackage().getName(), Strings.PREF_NAME);
+            XSharedPreferences pref = new XSharedPreferences(this.getClass().getPackage().getName(), Strings.PREF_NAME);
             pref.makeWorldReadable();
             log.append("Prefs now WorldReadable");
             if (pref.contains(Strings.KEY_LOG)) {
@@ -66,6 +74,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 log.setDoOutput(doLog);
                 if (enable) log.append("Enabled Logs");
             }
+            perms = Strings.read(pref);
         } catch (Throwable t) {
             errors.put(t);
         }
@@ -163,8 +172,7 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         } catch (NoSuchFieldError | ClassCastException e) {
                             log.append("Failed to get requested permissions. Old permissions won't be removed until reboot.", e);
                         }
-                        List<String> newPerms = Strings.read(pref);
-                        log.append("Adding permissions: " + Arrays.toString(newPerms.toArray()));
+                        log.append("Adding permissions: " + Arrays.toString(perms.toArray()));
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                             Object sharedUser = null;
                             try {
@@ -178,9 +186,9 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             } else {
                                 grantedPerms = (Collection<String>) getObjectField(sharedUser, "grantedPermissions");
                             }
-                            grantPermsPreM(pkgName, newPerms, grantedPerms, param.thisObject, permissions, extras, sharedUser);
+                            grantPermsPreM(pkgName, perms, grantedPerms, param.thisObject, permissions, extras, sharedUser);
                             if (requestedPerms != null) {
-                                revokePermsPreM(newPerms, grantedPerms, requestedPerms, param.thisObject, permissions, extras, sharedUser);
+                                revokePermsPreM(perms, grantedPerms, requestedPerms, param.thisObject, permissions, extras, sharedUser);
                             }
                         } else {
                             Class userManagerService = findClass("com.android.server.pm.UserManagerService", classLoader);
@@ -189,9 +197,9 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             int[] userIds = (int[]) callMethod(userService, "getUserIds");
                             for (int id : userIds) {
                                 log.append("user: " + id);
-                                grantPermsPostM(pkgName, newPerms, param.thisObject, permissions, permissionState, id);
+                                grantPermsPostM(pkgName, perms, param.thisObject, permissions, permissionState, id);
                                 if (requestedPerms != null) {
-                                    revokePermsPostM(newPerms, requestedPerms, param.thisObject, permissions, permissionState, id);
+                                    revokePermsPostM(perms, requestedPerms, param.thisObject, permissions, permissionState, id);
                                 }
                             }
                         }
@@ -395,11 +403,12 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         public void onReceive(Context context, Intent intent) {
             try {
                 log.append("Received Broadcast");
-                if (!Strings.ACTION_PERMISSIONS.equals(intent.getExtras().getString(Strings.KEY_ACTION)))
+                Bundle extras;
+                if ((extras = intent.getExtras()) == null || !Strings.ACTION_PERMISSIONS.equals(extras.getString(Strings.KEY_ACTION)))
                     return;
                 try {
-                    pref.reload();
-                    boolean killApp = pref.getBoolean(Strings.KEY_KILL, false);
+                    boolean killApp = extras.getBoolean(Strings.KEY_KILL, true);
+                    perms = Strings.read(extras.getString(Strings.KEY_PERMISSIONS));
                     synchronized (mPackages) {
                         Object pkgInfo = mPackages.get(installed);
                         if (pkgInfo != null) {
